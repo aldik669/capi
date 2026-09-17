@@ -1,6 +1,9 @@
 const express = require('express');
 const os = require('os');
 const db = require('../db');
+const { getPixelInfo, getTokenPermissions, sendRealTestEvent } = require('../lib/diagnose');
+
+const { GRAPH_API_VERSION = 'v21.0' } = process.env;
 
 const PROJECT_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 
@@ -73,6 +76,30 @@ router.put('/api/projects/:id', (req, res) => {
     `[admin.updateProject] pid=${process.pid} host=${os.hostname()} id=${req.params.id} saved test_event_code=${JSON.stringify(project.test_event_code)}`
   );
   res.json(toPublicProject(project));
+});
+
+router.get('/api/projects/:id/diagnose', async (req, res) => {
+  const project = db.getProject(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+
+  try {
+    const [pixelInfo, permissions, testEvent] = await Promise.all([
+      getPixelInfo(project.pixel_id, project.access_token, GRAPH_API_VERSION),
+      getTokenPermissions(project.access_token, GRAPH_API_VERSION),
+      sendRealTestEvent(project.pixel_id, project.access_token, GRAPH_API_VERSION, project.test_event_code),
+    ]);
+
+    res.json({
+      project_id: project.id,
+      pixel_id: project.pixel_id,
+      test_event_code: project.test_event_code,
+      pixel_info: pixelInfo,
+      token_permissions: permissions,
+      real_test_event: testEvent,
+    });
+  } catch (err) {
+    res.status(502).json({ error: 'Diagnose request to Meta failed', details: err.message });
+  }
 });
 
 router.delete('/api/projects/:id', (req, res) => {
