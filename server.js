@@ -15,6 +15,10 @@ if (!ADMIN_PASSWORD) {
 const app = express();
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.redirect('/admin');
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -24,6 +28,10 @@ app.use('/webhook', webhookRouter);
 const adminAuth = basicAuth({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD, realm: 'CAPI Admin' });
 app.use('/admin', adminAuth, adminRouter);
 app.use('/admin', adminAuth, express.static(path.join(__dirname, 'public')));
+
+app.use((req, res) => {
+  res.status(404).json({ error: `Not found: ${req.method} ${req.path}` });
+});
 
 app.listen(PORT, () => {
   console.log(`CAPI service listening on port ${PORT}`);

@@ -6,6 +6,12 @@ const { GRAPH_API_VERSION = 'v21.0' } = process.env;
 
 const router = express.Router();
 
+router.get('/lead/:projectId', (req, res) => {
+  res.status(405).json({
+    error: 'This endpoint only accepts POST requests with a JSON body from your CRM — it is not meant to be opened in a browser.',
+  });
+});
+
 router.post('/lead/:projectId', async (req, res) => {
   const project = db.getProject(req.params.projectId);
   if (!project) {
