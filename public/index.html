@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CAPI Admin</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --border: #e2e2e6;
+    --text: #1c1c1f;
+    --muted: #6b6b73;
+    --accent: #1877f2;
+    --accent-hover: #1461cc;
+    --danger: #d64545;
+    --danger-hover: #b93838;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f11;
+      --card: #1a1a1d;
+      --border: #2d2d31;
+      --text: #f0f0f2;
+      --muted: #9a9aa2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--muted); }
+  input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg); }
+  .actions { margin-top: 14px; display: flex; gap: 8px; }
+  .project {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .project-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .project-name { font-weight: 600; font-size: 15px; }
+  .project-id { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  .project-meta { margin-top: 8px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .webhook-url {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .webhook-url code {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .project-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CAPI Admin</h1>
+  <p class="sub">Управление проектами: каждому проекту — свой пиксель и токен Meta Conversions API.</p>
+
+  <div class="card">
+    <h2 id="form-title">Новый проект</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="f-id">ID проекта (используется в URL вебхука)</label>
+        <input id="f-id" placeholder="my-shop" />
+      </div>
+      <div class="field">
+        <label for="f-name">Название</label>
+        <input id="f-name" placeholder="Мой магазин" />
+      </div>
+      <div class="field">
+        <label for="f-pixel">PIXEL_ID</label>
+        <input id="f-pixel" placeholder="123456789012345" />
+      </div>
+      <div class="field">
+        <label for="f-test">TEST_EVENT_CODE (опционально)</label>
+        <input id="f-test" placeholder="TEST12345" />
+      </div>
+      <div class="field full">
+        <label for="f-token">ACCESS_TOKEN</label>
+        <input id="f-token" type="password" placeholder="EAAG..." />
+        <div class="hint" id="token-hint"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" id="save-btn">Сохранить</button>
+      <button class="btn-ghost" id="cancel-btn" style="display:none">Отмена</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Проекты</h2>
+    <div id="projects"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const els = {
+    id: document.getElementById('f-id'),
+    name: document.getElementById('f-name'),
+    pixel: document.getElementById('f-pixel'),
+    test: document.getElementById('f-test'),
+    token: document.getElementById('f-token'),
+    tokenHint: document.getElementById('token-hint'),
+    saveBtn: document.getElementById('save-btn'),
+    cancelBtn: document.getElementById('cancel-btn'),
+    formTitle: document.getElementById('form-title'),
+    projects: document.getElementById('projects'),
+    toast: document.getElementById('toast'),
+  };
+
+  let editingId = null;
+
+  function toast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    setTimeout(() => els.toast.classList.remove('show'), 2000);
+  }
+
+  function resetForm() {
+    editingId = null;
+    els.id.disabled = false;
+    els.id.value = '';
+    els.name.value = '';
+    els.pixel.value = '';
+    els.test.value = '';
+    els.token.value = '';
+    els.tokenHint.textContent = '';
+    els.formTitle.textContent = 'Новый проект';
+    els.cancelBtn.style.display = 'none';
+  }
+
+  function startEdit(p) {
+    editingId = p.id;
+    els.id.value = p.id;
+    els.id.disabled = true;
+    els.name.value = p.name;
+    els.pixel.value = p.pixel_id;
+    els.test.value = p.test_event_code || '';
+    els.token.value = '';
+    els.tokenHint.textContent = `Текущий токен: ${p.access_token_masked}. Оставьте пустым, чтобы не менять.`;
+    els.formTitle.textContent = `Редактирование: ${p.name}`;
+    els.cancelBtn.style.display = 'inline-block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function api(path, options) {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  function webhookUrlFor(id) {
+    return `${window.location.origin}/webhook/lead/${id}`;
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Скопировано');
+    } catch {
+      toast('Не удалось скопировать');
+    }
+  }
+
+  function renderProjects(list) {
+    els.projects.innerHTML = '';
+    if (list.length === 0) {
+      els.projects.innerHTML = '<div class="empty">Проектов пока нет — добавьте первый выше.</div>';
+      return;
+    }
+    for (const p of list) {
+      const url = webhookUrlFor(p.id);
+      const div = document.createElement('div');
+      div.className = 'project';
+      div.innerHTML = `
+        <div class="project-head">
+          <span class="project-name">${p.name}</span>
+          <span class="project-id">${p.id}</span>
+        </div>
+        <div class="project-meta">
+          <span>Pixel ID: ${p.pixel_id}</span>
+          <span>Token: ${p.access_token_masked}</span>
+          ${p.test_event_code ? `<span>Test event code: ${p.test_event_code}</span>` : ''}
+        </div>
+        <div class="webhook-url">
+          <code>${url}</code>
+          <button class="btn-ghost copy-btn">Копировать</button>
+        </div>
+        <div class="project-actions">
+          <button class="btn-ghost edit-btn">Редактировать</button>
+          <button class="btn-danger delete-btn">Удалить</button>
+        </div>
+      `;
+      div.querySelector('.copy-btn').addEventListener('click', () => copyText(url));
+      div.querySelector('.edit-btn').addEventListener('click', () => startEdit(p));
+      div.querySelector('.delete-btn').addEventListener('click', () => deleteProject(p.id, p.name));
+      els.projects.appendChild(div);
+    }
+  }
+
+  async function loadProjects() {
+    const list = await api('/admin/api/projects');
+    renderProjects(list);
+  }
+
+  async function deleteProject(id, name) {
+    if (!confirm(`Удалить проект "${name}"?`)) return;
+    try {
+      await api(`/admin/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast('Проект удалён');
+      if (editingId === id) resetForm();
+      loadProjects();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  els.saveBtn.addEventListener('click', async () => {
+    const payload = {
+      name: els.name.value.trim(),
+      pixel_id: els.pixel.value.trim(),
+      test_event_code: els.test.value.trim() || null,
+    };
+    if (els.token.value.trim()) payload.access_token = els.token.value.trim();
+
+    try {
+      if (editingId) {
+        await api(`/admin/api/projects/${encodeURIComponent(editingId)}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        toast('Проект обновлён');
+      } else {
+        payload.id = els.id.value.trim();
+        if (!payload.access_token) {
+          alert('access_token обязателен для нового проекта');
+          return;
+        }
+        await api('/admin/api/projects', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        toast('Проект создан');
+      }
+      resetForm();
+      loadProjects();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  els.cancelBtn.addEventListener('click', resetForm);
+
+  loadProjects();
+</script>
+</body>
+</html>
