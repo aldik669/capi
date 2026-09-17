@@ -1,11 +1,15 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const Database = require('better-sqlite3');
 
 const dataDir = path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(path.join(dataDir, 'projects.db'));
+const dbPath = path.join(dataDir, 'projects.db');
+console.log(`[db] pid=${process.pid} host=${os.hostname()} using SQLite database at: ${dbPath}`);
+
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (

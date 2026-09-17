@@ -1,7 +1,15 @@
 const express = require('express');
+const os = require('os');
 const db = require('../db');
 
 const PROJECT_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+function cleanTestEventCode(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed === '' ? null : trimmed;
+}
 
 function maskToken(token) {
   if (!token) return '';
@@ -46,7 +54,7 @@ router.post('/api/projects', (req, res) => {
     return res.status(409).json({ error: `Project with id "${id}" already exists` });
   }
 
-  const project = db.createProject({ id, name, pixel_id, access_token, test_event_code });
+  const project = db.createProject({ id, name, pixel_id, access_token, test_event_code: cleanTestEventCode(test_event_code) });
   res.status(201).json(toPublicProject(project));
 });
 
@@ -55,7 +63,15 @@ router.put('/api/projects/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Project not found' });
 
   const { name, pixel_id, access_token, test_event_code } = req.body || {};
-  const project = db.updateProject(req.params.id, { name, pixel_id, access_token, test_event_code });
+  const project = db.updateProject(req.params.id, {
+    name,
+    pixel_id,
+    access_token,
+    test_event_code: cleanTestEventCode(test_event_code),
+  });
+  console.log(
+    `[admin.updateProject] pid=${process.pid} host=${os.hostname()} id=${req.params.id} saved test_event_code=${JSON.stringify(project.test_event_code)}`
+  );
   res.json(toPublicProject(project));
 });
 
