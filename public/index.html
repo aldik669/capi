@@ -57,7 +57,17 @@
     color: var(--text);
     font-size: 14px;
   }
-  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: ui-monospace, monospace;
+    resize: vertical;
+  }
   button {
     border: none;
     border-radius: 8px;
@@ -101,6 +111,19 @@
   }
   .project-actions { margin-top: 10px; display: flex; gap: 8px; }
   .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  .section-label { font-size: 12px; color: var(--muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pipelines-output {
+    margin-top: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 11px;
+    max-height: 280px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   .toast {
     position: fixed;
     bottom: 20px;
@@ -149,6 +172,28 @@
         <div class="hint" id="token-hint"></div>
       </div>
     </div>
+
+    <div class="section-label">amoCRM (опционально)</div>
+    <div class="grid">
+      <div class="field">
+        <label for="f-amo-subdomain">Поддомен amoCRM</label>
+        <input id="f-amo-subdomain" placeholder="dynexalmaty" />
+      </div>
+      <div class="field">
+        <label for="f-amo-domain">Домен amoCRM</label>
+        <input id="f-amo-domain" placeholder="amocrm.ru" />
+      </div>
+      <div class="field full">
+        <label for="f-amo-token">Долгосрочный токен amoCRM</label>
+        <input id="f-amo-token" type="password" placeholder="eyJ0eXAiOiJKV1Qi..." />
+        <div class="hint" id="amo-token-hint"></div>
+      </div>
+      <div class="field full">
+        <label for="f-status-map">status_map — JSON {"status_id": "event_name"}</label>
+        <textarea id="f-status-map" rows="3" placeholder='{"142":"Lead","143":"QualifiedLead","144":"Purchase"}'></textarea>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn-primary" id="save-btn">Сохранить</button>
       <button class="btn-ghost" id="cancel-btn" style="display:none">Отмена</button>
@@ -171,6 +216,11 @@
     test: document.getElementById('f-test'),
     token: document.getElementById('f-token'),
     tokenHint: document.getElementById('token-hint'),
+    amoSubdomain: document.getElementById('f-amo-subdomain'),
+    amoDomain: document.getElementById('f-amo-domain'),
+    amoToken: document.getElementById('f-amo-token'),
+    amoTokenHint: document.getElementById('amo-token-hint'),
+    statusMap: document.getElementById('f-status-map'),
     saveBtn: document.getElementById('save-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     formTitle: document.getElementById('form-title'),
@@ -195,6 +245,11 @@
     els.test.value = '';
     els.token.value = '';
     els.tokenHint.textContent = '';
+    els.amoSubdomain.value = '';
+    els.amoDomain.value = '';
+    els.amoToken.value = '';
+    els.amoTokenHint.textContent = '';
+    els.statusMap.value = '';
     els.formTitle.textContent = 'Новый проект';
     els.cancelBtn.style.display = 'none';
   }
@@ -208,6 +263,13 @@
     els.test.value = p.test_event_code || '';
     els.token.value = '';
     els.tokenHint.textContent = `Текущий токен: ${p.access_token_masked}. Оставьте пустым, чтобы не менять.`;
+    els.amoSubdomain.value = p.amo_subdomain || '';
+    els.amoDomain.value = p.amo_base_domain || '';
+    els.amoToken.value = '';
+    els.amoTokenHint.textContent = p.amo_token_masked
+      ? `Текущий токен: ${p.amo_token_masked}. Оставьте пустым, чтобы не менять.`
+      : '';
+    els.statusMap.value = p.status_map ? JSON.stringify(p.status_map, null, 2) : '';
     els.formTitle.textContent = `Редактирование: ${p.name}`;
     els.cancelBtn.style.display = 'inline-block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -229,6 +291,10 @@
     return `${window.location.origin}/webhook/lead/${id}`;
   }
 
+  function amoWebhookUrlFor(id) {
+    return `${window.location.origin}/webhook/amocrm/${id}`;
+  }
+
   async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -246,6 +312,8 @@
     }
     for (const p of list) {
       const url = webhookUrlFor(p.id);
+      const amoUrl = amoWebhookUrlFor(p.id);
+      const hasAmo = Boolean(p.amo_subdomain && p.amo_token_masked);
       const div = document.createElement('div');
       div.className = 'project';
       div.innerHTML = `
@@ -262,15 +330,45 @@
           <code>${url}</code>
           <button class="btn-ghost copy-btn">Копировать</button>
         </div>
+        ${p.amo_subdomain ? `
+          <div class="project-meta">
+            <span>amoCRM: ${p.amo_subdomain}.${p.amo_base_domain || 'amocrm.ru'}</span>
+            ${p.amo_token_masked ? `<span>amoCRM token: ${p.amo_token_masked}</span>` : ''}
+            ${p.status_map ? `<span>status_map: ${JSON.stringify(p.status_map)}</span>` : ''}
+          </div>
+          <div class="webhook-url">
+            <code>${amoUrl}</code>
+            <button class="btn-ghost copy-amo-btn">Копировать</button>
+          </div>
+        ` : ''}
         <div class="project-actions">
           <button class="btn-ghost edit-btn">Редактировать</button>
+          ${hasAmo ? '<button class="btn-ghost pipelines-btn">Показать воронки amoCRM</button>' : ''}
           <button class="btn-danger delete-btn">Удалить</button>
         </div>
+        <pre class="pipelines-output" hidden></pre>
       `;
       div.querySelector('.copy-btn').addEventListener('click', () => copyText(url));
       div.querySelector('.edit-btn').addEventListener('click', () => startEdit(p));
       div.querySelector('.delete-btn').addEventListener('click', () => deleteProject(p.id, p.name));
+      const copyAmoBtn = div.querySelector('.copy-amo-btn');
+      if (copyAmoBtn) copyAmoBtn.addEventListener('click', () => copyText(amoUrl));
+      const pipelinesBtn = div.querySelector('.pipelines-btn');
+      if (pipelinesBtn) {
+        pipelinesBtn.addEventListener('click', () => loadPipelines(p.id, div.querySelector('.pipelines-output')));
+      }
       els.projects.appendChild(div);
+    }
+  }
+
+  async function loadPipelines(id, outEl) {
+    outEl.hidden = false;
+    outEl.textContent = 'Загрузка...';
+    try {
+      const data = await api(`/admin/api/projects/${encodeURIComponent(id)}/amo-pipelines`);
+      outEl.textContent = JSON.stringify(data, null, 2);
+    } catch (err) {
+      outEl.textContent = `Ошибка: ${err.message}`;
     }
   }
 
@@ -296,8 +394,12 @@
       name: els.name.value.trim(),
       pixel_id: els.pixel.value.trim(),
       test_event_code: els.test.value.trim() || null,
+      amo_subdomain: els.amoSubdomain.value.trim() || null,
+      amo_base_domain: els.amoDomain.value.trim() || null,
+      status_map: els.statusMap.value.trim() || null,
     };
     if (els.token.value.trim()) payload.access_token = els.token.value.trim();
+    if (els.amoToken.value.trim()) payload.amo_token = els.amoToken.value.trim();
 
     try {
       if (editingId) {
