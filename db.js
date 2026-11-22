@@ -22,6 +22,7 @@ db.exec(`
     amo_base_domain TEXT,
     amo_token TEXT,
     status_map TEXT,
+    default_purchase_value REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
@@ -37,6 +38,7 @@ ensureColumn('projects', 'amo_subdomain', 'TEXT');
 ensureColumn('projects', 'amo_base_domain', 'TEXT');
 ensureColumn('projects', 'amo_token', 'TEXT');
 ensureColumn('projects', 'status_map', 'TEXT');
+ensureColumn('projects', 'default_purchase_value', 'REAL');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sent_events (
@@ -66,11 +68,12 @@ function createProject({
   amo_base_domain,
   amo_token,
   status_map,
+  default_purchase_value,
 }) {
   db.prepare(
     `INSERT INTO projects
-      (id, name, pixel_id, access_token, test_event_code, amo_subdomain, amo_base_domain, amo_token, status_map)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (id, name, pixel_id, access_token, test_event_code, amo_subdomain, amo_base_domain, amo_token, status_map, default_purchase_value)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     name,
@@ -80,7 +83,8 @@ function createProject({
     amo_subdomain || null,
     amo_base_domain || null,
     amo_token || null,
-    status_map || null
+    status_map || null,
+    default_purchase_value ?? null
   );
   return getProject(id);
 }
@@ -94,6 +98,7 @@ function updateProject(id, {
   amo_base_domain,
   amo_token,
   status_map,
+  default_purchase_value,
 }) {
   const existing = getProject(id);
   if (!existing) return null;
@@ -101,7 +106,8 @@ function updateProject(id, {
   db.prepare(
     `UPDATE projects
      SET name = ?, pixel_id = ?, access_token = ?, test_event_code = ?,
-         amo_subdomain = ?, amo_base_domain = ?, amo_token = ?, status_map = ?
+         amo_subdomain = ?, amo_base_domain = ?, amo_token = ?, status_map = ?,
+         default_purchase_value = ?
      WHERE id = ?`
   ).run(
     name ?? existing.name,
@@ -112,6 +118,7 @@ function updateProject(id, {
     amo_base_domain !== undefined ? (amo_base_domain || null) : existing.amo_base_domain,
     amo_token ? amo_token : existing.amo_token,
     status_map !== undefined ? (status_map || null) : existing.status_map,
+    default_purchase_value !== undefined ? default_purchase_value : existing.default_purchase_value,
     id
   );
 

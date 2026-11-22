@@ -192,6 +192,11 @@
         <label for="f-status-map">status_map — JSON {"status_id": "event_name"}</label>
         <textarea id="f-status-map" rows="3" placeholder='{"142":"Lead","143":"QualifiedLead","144":"Purchase"}'></textarea>
       </div>
+      <div class="field">
+        <label for="f-default-purchase-value">default_purchase_value (опционально)</label>
+        <input id="f-default-purchase-value" type="number" step="any" placeholder="15000" />
+        <div class="hint">Подставляется в Purchase, только если у сделки нет цены (price пуст или 0).</div>
+      </div>
     </div>
 
     <div class="actions">
@@ -221,6 +226,7 @@
     amoToken: document.getElementById('f-amo-token'),
     amoTokenHint: document.getElementById('amo-token-hint'),
     statusMap: document.getElementById('f-status-map'),
+    defaultPurchaseValue: document.getElementById('f-default-purchase-value'),
     saveBtn: document.getElementById('save-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     formTitle: document.getElementById('form-title'),
@@ -250,6 +256,7 @@
     els.amoToken.value = '';
     els.amoTokenHint.textContent = '';
     els.statusMap.value = '';
+    els.defaultPurchaseValue.value = '';
     els.formTitle.textContent = 'Новый проект';
     els.cancelBtn.style.display = 'none';
   }
@@ -270,6 +277,7 @@
       ? `Текущий токен: ${p.amo_token_masked}. Оставьте пустым, чтобы не менять.`
       : '';
     els.statusMap.value = p.status_map ? JSON.stringify(p.status_map, null, 2) : '';
+    els.defaultPurchaseValue.value = p.default_purchase_value ?? '';
     els.formTitle.textContent = `Редактирование: ${p.name}`;
     els.cancelBtn.style.display = 'inline-block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -335,6 +343,7 @@
             <span>amoCRM: ${p.amo_subdomain}.${p.amo_base_domain || 'amocrm.ru'}</span>
             ${p.amo_token_masked ? `<span>amoCRM token: ${p.amo_token_masked}</span>` : ''}
             ${p.status_map ? `<span>status_map: ${JSON.stringify(p.status_map)}</span>` : ''}
+            ${p.default_purchase_value != null ? `<span>default_purchase_value: ${p.default_purchase_value}</span>` : ''}
           </div>
           <div class="webhook-url">
             <code>${amoUrl}</code>
@@ -397,6 +406,7 @@
       amo_subdomain: els.amoSubdomain.value.trim() || null,
       amo_base_domain: els.amoDomain.value.trim() || null,
       status_map: els.statusMap.value.trim() || null,
+      default_purchase_value: els.defaultPurchaseValue.value.trim() || null,
     };
     if (els.token.value.trim()) payload.access_token = els.token.value.trim();
     if (els.amoToken.value.trim()) payload.amo_token = els.amoToken.value.trim();

@@ -39,6 +39,16 @@ function cleanStatusMap(value) {
   return JSON.stringify(parsed);
 }
 
+function cleanDefaultPurchaseValue(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) {
+    throw new Error('default_purchase_value must be a positive number');
+  }
+  return num;
+}
+
 function parseStatusMap(raw) {
   if (!raw) return null;
   try {
@@ -65,6 +75,7 @@ function toPublicProject(project) {
     amo_base_domain: project.amo_base_domain,
     amo_token_masked: maskToken(project.amo_token),
     status_map: parseStatusMap(project.status_map),
+    default_purchase_value: project.default_purchase_value,
     created_at: project.created_at,
   };
 }
@@ -92,6 +103,7 @@ router.post('/api/projects', (req, res) => {
     amo_base_domain,
     amo_token,
     status_map,
+    default_purchase_value,
   } = req.body || {};
 
   if (!id || !PROJECT_ID_RE.test(id)) {
@@ -106,8 +118,10 @@ router.post('/api/projects', (req, res) => {
   }
 
   let cleanedStatusMap;
+  let cleanedDefaultPurchaseValue;
   try {
     cleanedStatusMap = cleanStatusMap(status_map);
+    cleanedDefaultPurchaseValue = cleanDefaultPurchaseValue(default_purchase_value);
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -122,6 +136,7 @@ router.post('/api/projects', (req, res) => {
     amo_base_domain: amo_base_domain || null,
     amo_token: amo_token || null,
     status_map: cleanedStatusMap,
+    default_purchase_value: cleanedDefaultPurchaseValue ?? null,
   });
   res.status(201).json(toPublicProject(project));
 });
@@ -139,11 +154,14 @@ router.put('/api/projects/:id', (req, res) => {
     amo_base_domain,
     amo_token,
     status_map,
+    default_purchase_value,
   } = req.body || {};
 
   let cleanedStatusMap;
+  let cleanedDefaultPurchaseValue;
   try {
     cleanedStatusMap = cleanStatusMap(status_map);
+    cleanedDefaultPurchaseValue = cleanDefaultPurchaseValue(default_purchase_value);
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -157,6 +175,7 @@ router.put('/api/projects/:id', (req, res) => {
     amo_base_domain,
     amo_token,
     status_map: cleanedStatusMap,
+    default_purchase_value: cleanedDefaultPurchaseValue,
   });
   console.log(
     `[admin.updateProject] pid=${process.pid} host=${os.hostname()} id=${req.params.id} saved test_event_code=${JSON.stringify(project.test_event_code)}`

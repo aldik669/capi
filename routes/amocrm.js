@@ -20,8 +20,23 @@ function tentativeParseLeadsStatus(body) {
       lead_id: entry && entry.id,
       status_id: entry && entry.status_id,
       pipeline_id: entry && entry.pipeline_id,
+      price: entry && entry.price,
     }))
     .filter((e) => e.lead_id && e.status_id);
+}
+
+function resolvePurchaseValue(rawPrice, defaultPurchaseValue) {
+  const price = Number(rawPrice);
+  if (Number.isFinite(price) && price > 0) {
+    return { value: price, source: 'deal_price' };
+  }
+  if (defaultPurchaseValue !== null && defaultPurchaseValue !== undefined) {
+    const def = Number(defaultPurchaseValue);
+    if (Number.isFinite(def) && def > 0) {
+      return { value: def, source: 'project_default' };
+    }
+  }
+  return null;
 }
 
 router.post('/amocrm/:projectId', (req, res) => {
@@ -58,8 +73,30 @@ router.post('/amocrm/:projectId', (req, res) => {
 
   for (const entry of tentative) {
     const eventName = statusMap[entry.status_id];
+
+    if (!eventName) {
+      console.log(
+        `[amocrm.webhook] project=${projectId} DRY RUN lead_id=${entry.lead_id} status_id=${entry.status_id} pipeline_id=${entry.pipeline_id} status not in status_map — ignored`
+      );
+      continue;
+    }
+
+    if (eventName === 'Purchase') {
+      const resolved = resolvePurchaseValue(entry.price, project.default_purchase_value);
+      if (!resolved) {
+        console.log(
+          `[amocrm.webhook] project=${projectId} DRY RUN lead_id=${entry.lead_id} status_id=${entry.status_id} event_name=Purchase SKIPPED — no deal price and no default_purchase_value configured`
+        );
+        continue;
+      }
+      console.log(
+        `[amocrm.webhook] project=${projectId} DRY RUN would-process lead_id=${entry.lead_id} status_id=${entry.status_id} pipeline_id=${entry.pipeline_id} event_name=Purchase value=${resolved.value} value_source=${resolved.source} currency=KZT — not yet forwarded to amoCRM/Meta APIs pending format confirmation`
+      );
+      continue;
+    }
+
     console.log(
-      `[amocrm.webhook] project=${projectId} DRY RUN would-process lead_id=${entry.lead_id} status_id=${entry.status_id} pipeline_id=${entry.pipeline_id} mapped_event_name=${eventName || '(not mapped, would be ignored)'} — not yet forwarded to amoCRM/Meta APIs pending format confirmation`
+      `[amocrm.webhook] project=${projectId} DRY RUN would-process lead_id=${entry.lead_id} status_id=${entry.status_id} pipeline_id=${entry.pipeline_id} mapped_event_name=${eventName} — not yet forwarded to amoCRM/Meta APIs pending format confirmation`
     );
   }
 });
